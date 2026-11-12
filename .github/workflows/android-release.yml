@@ -1,4 +1,4 @@
-name: Android signed release
+name: Check List Main - Android release
 
 on:
   workflow_dispatch:
@@ -78,6 +78,19 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.mhasanzare82crypto --project-name checklist_maik .
 
+      - name: Set app display name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          s, n = re.subn(r'android:label="[^"]*"', 'android:label="Check List Main"', s, count=1)
+          if n == 0:
+              s = s.replace("<application", '<application android:label="Check List Main"', 1)
+          p.write_text(s)
+          PY
+
       - name: Restore signing key
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -134,14 +147,16 @@ jobs:
         run: |
           flutter build apk --release
           flutter build appbundle --release
+          cp build/app/outputs/flutter-apk/Check-List-Main.apk build/app/outputs/flutter-apk/Check-List-Main.apk
+          cp build/app/outputs/bundle/release/Check-List-Main.aab build/app/outputs/bundle/release/Check-List-Main.aab
 
       - name: Upload APK and AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Check-list-maik-${{ github.ref_name }}
+          name: Check-List-Main-${{ github.ref_name }}
           path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/Check-List-Main.apk
+            build/app/outputs/bundle/release/Check-List-Main.aab
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -149,5 +164,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/Check-List-Main.apk
+            build/app/outputs/bundle/release/Check-List-Main.aab
