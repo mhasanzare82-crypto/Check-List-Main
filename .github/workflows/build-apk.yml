@@ -2,12 +2,70 @@ name: Build Checklist APK
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "setup-signing برای ساخت کلید اولیه، build برای ساخت APK"
+        required: true
+        type: choice
+        options:
+          - setup-signing
+          - build
+        default: setup-signing
 
 permissions:
   contents: write
 
 jobs:
+  setup-signing:
+    if: inputs.mode == 'setup-signing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require export password
+        env:
+          EXPORT_PASSWORD: ${{ secrets.KEY_EXPORT_PASSWORD }}
+        run: |
+          if [ -z "$EXPORT_PASSWORD" ]; then
+            echo "::error::ابتدا Secret با نام KEY_EXPORT_PASSWORD را در GitHub تنظیم کنید."
+            exit 1
+          fi
+
+      - name: Generate a permanent Android release key
+        env:
+          EXPORT_PASSWORD: ${{ secrets.KEY_EXPORT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          STORE_PASSWORD="$(openssl rand -hex 24)"
+          KEY_PASSWORD="$(openssl rand -hex 24)"
+          KEY_ALIAS="checklist-release"
+          keytool -genkeypair -v \
+            -keystore release-keystore.jks \
+            -storepass "$STORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Checklist App, OU=Mobile, O=Personal, L=Unknown, ST=Unknown, C=US"
+          {
+            echo "SIGNING_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
+            echo "SIGNING_KEY_PASSWORD=$KEY_PASSWORD"
+          } > signing-credentials.txt
+          tar -czf signing-bundle.tar.gz release-keystore.jks signing-credentials.txt
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in signing-bundle.tar.gz \
+            -out checklist-signing-bundle.enc \
+            -pass env:EXPORT_PASSWORD
+          rm -f release-keystore.jks signing-credentials.txt signing-bundle.tar.gz
+
+      - name: Upload encrypted signing bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-checklist-signing-key
+          path: checklist-signing-bundle.enc
+          if-no-files-found: error
+          retention-days: 3
+
   build:
+    if: inputs.mode == 'build'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,8 +91,9 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           if [ -z "$SIGNING_KEYSTORE_BASE64" ] || [ -z "$SIGNING_STORE_PASSWORD" ] || [ -z "$SIGNING_KEY_ALIAS" ] || [ -z "$SIGNING_KEY_PASSWORD" ]; then
-            echo "::error::برای امضای پایدار APK، چهار Secret امضای برنامه را در Settings > Secrets and variables > Actions تنظیم کنید. راهنما در README است."
+            echo "::error::چهار Secret امضای پایدار را طبق راهنمای README تنظیم کنید."
             exit 1
           fi
           echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > android/app/release-keystore.jks
@@ -57,7 +116,7 @@ jobs:
           )
           s = s.replace(
               '        release {',
-              '        release {\n            signingConfig = signingConfigs.getByName("release")'
+              '        release {\\n            signingConfig = signingConfigs.getByName("release")'
           )
           s = s.replace(
               'signingConfig = signingConfigs.getByName("debug")',
@@ -101,13 +160,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: checklist-maik-${{ github.ref_name }}
+          name: checklist-maik-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
