@@ -82,9 +82,13 @@ jobs:
         run: |
           mkdir -p android
           touch android/gradle.properties
-          if ! grep -q '^android.newDsl=' android/gradle.properties; then
+          if grep -q '^android.newDsl=' android/gradle.properties; then
+            sed -i 's/^android.newDsl=.*/android.newDsl=false/' android/gradle.properties
+          else
             echo 'android.newDsl=false' >> android/gradle.properties
           fi
+          echo "Android Gradle DSL compatibility setting:"
+          grep '^android.newDsl=' android/gradle.properties
 
       - name: Set app display name
         run: |
