@@ -118,10 +118,10 @@ jobs:
               }
           """
           if 'create("release")' not in s:
-              marker = "\\n}\\n\\nflutter {"
+              marker = "\n}\n\nflutter {"
               if marker not in s:
                   raise SystemExit("Could not safely configure Android signing in build.gradle.kts")
-              s = s.replace(marker, "\\n" + block + "\\n}\\n\\nflutter {", 1)
+              s = s.replace(marker, "\n" + block + "\n}\n\nflutter {", 1)
               p.write_text(s)
           PY
 
