@@ -78,6 +78,14 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.mhasanzare82crypto --project-name checklist_maik .
 
+      - name: Enable compatible Android Gradle DSL
+        run: |
+          mkdir -p android
+          touch android/gradle.properties
+          if ! grep -q '^android.newDsl=' android/gradle.properties; then
+            echo 'android.newDsl=false' >> android/gradle.properties
+          fi
+
       - name: Set app display name
         run: |
           python3 - <<'PY'
