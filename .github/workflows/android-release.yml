@@ -80,15 +80,26 @@ jobs:
 
       - name: Pin compatible Android Gradle plugin
         run: |
+          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import re
           p = Path("android/settings.gradle.kts")
+          if not p.exists():
+              p = Path("android/settings.gradle")
           s = p.read_text()
-          s, n = re.subn(r'(id\\("com\\.android\\.application"\\)\\s+version\\s+")[^"]+(")', r'\\g<1>8.9.1\\2', s, count=1)
-          if n != 1:
-              raise SystemExit("Could not pin Android Gradle Plugin in settings.gradle.kts")
-          p.write_text(s)
+          lines = s.splitlines()
+          found = False
+          for i, line in enumerate(lines):
+              if "com.android.application" in line and "version" in line:
+                  lines[i], n = re.subn(r'version\\s+["\\'][^"\\']+["\\']', 'version "8.9.1"', line, count=1)
+                  if n == 0:
+                      raise SystemExit("Found Android plugin declaration but could not update its version: " + line)
+                  found = True
+                  break
+          if not found:
+              raise SystemExit("Android application plugin declaration was not found in settings file")
+          p.write_text("\\n".join(lines) + "\\n")
           p = Path("android/gradle/wrapper/gradle-wrapper.properties")
           s = p.read_text()
           s, n = re.subn(r'distributionUrl=.*', 'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip', s, count=1)
