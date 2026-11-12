@@ -147,8 +147,8 @@ jobs:
         run: |
           flutter build apk --release
           flutter build appbundle --release
-          cp build/app/outputs/flutter-apk/Check-List-Main.apk build/app/outputs/flutter-apk/Check-List-Main.apk
-          cp build/app/outputs/bundle/release/Check-List-Main.aab build/app/outputs/bundle/release/Check-List-Main.aab
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Check-List-Main.apk
+          cp build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/Check-List-Main.aab
 
       - name: Upload APK and AAB
         uses: actions/upload-artifact@v4
