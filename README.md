@@ -16,12 +16,12 @@
 شناسه ثابت اندروید: `com.mhasanzare82crypto.checklist_maik`.
 نسخه از `pubspec.yaml` خوانده می‌شود. برای هر انتشار، شماره build بعد از `+` را افزایش دهید؛ مثلاً `1.0.0+1` به `1.0.1+2`. شناسه برنامه و کلید امضا نباید عوض شوند.
 
-## تنظیم یک‌باره کلید امضا
+## اجرای محلی پروژه\n\nپوشه Android در زمان اجرای GitHub Actions ساخته می‌شود. برای اجرای محلی، ابتدا Flutter را نصب کنید و در ریشه پروژه این دستور را اجرا کنید:\n\n\`\`\`bash\nflutter create --platforms=android --org com.mhasanzare82crypto --project-name checklist_maik .\nflutter pub get\n\`\`\`\n\n## تنظیم یک‌باره کلید امضا
 برای اینکه APKهای آینده روی نسخه قبلی نصب شوند، همه نسخه‌های Release باید با **یک keystore ثابت** امضا شوند. این فایل را یک‌بار روی رایانه خود بسازید و آن را در مخزن عمومی قرار ندهید:
 
 ```bash
 keytool -genkeypair -v -keystore checklist-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias checklist
-base64 -w 0 checklist-release.jks
+base64 checklist-release.jks | tr -d '\\n'
 ```
 
 در GitHub مخزن، به Settings → Secrets and variables → Actions بروید و این چهار Secret را بسازید:
