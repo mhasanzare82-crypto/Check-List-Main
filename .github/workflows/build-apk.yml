@@ -1,0 +1,110 @@
+name: Build Checklist APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android project files
+        run: flutter create --platforms=android --org com.mhasanzare82crypto --project-name checklist_maik .
+
+      - name: Configure persistent release signing
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ] || [ -z "$SIGNING_STORE_PASSWORD" ] || [ -z "$SIGNING_KEY_ALIAS" ] || [ -z "$SIGNING_KEY_PASSWORD" ]; then
+            echo "::error::برای امضای پایدار APK، چهار Secret امضای برنامه را در Settings > Secrets and variables > Actions تنظیم کنید. راهنما در README است."
+            exit 1
+          fi
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > android/app/release-keystore.jks
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          s = s.replace(
+              '    buildTypes {',
+              '''    signingConfigs {
+                  create("release") {
+                      storeFile = file("release-keystore.jks")
+                      storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                      keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                      keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+                  }
+              }
+
+              buildTypes {'''
+          )
+          s = s.replace(
+              '        release {',
+              '        release {\n            signingConfig = signingConfigs.getByName("release")'
+          )
+          p.write_text(s)
+          PY
+
+      - name: Generate custom checklist launcher icon
+        run: |
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          from pathlib import Path
+          size = 512
+          im = Image.new("RGBA", (size, size), (43, 92, 190, 255))
+          d = ImageDraw.Draw(im)
+          d.rounded_rectangle((90, 55, 422, 457), radius=48, fill=(255,255,255,255))
+          for y in (145, 245, 345):
+              d.rounded_rectangle((135,y-22,179,y+22), radius=8, outline=(43,92,190,255), width=10)
+              d.line((142,y,153,y+12,174,y-14), fill=(28,158,117,255), width=10)
+              d.rounded_rectangle((205,y-12,365,y+12), radius=10, fill=(43,92,190,255))
+          for folder in ("mipmap-mdpi","mipmap-hdpi","mipmap-xhdpi","mipmap-xxhdpi","mipmap-xxxhdpi"):
+              path = Path("android/app/src/main/res") / folder / "ic_launcher.png"
+              if path.parent.exists():
+                  im.resize((48,72) if "mdpi" in folder and "xxx" not in folder and "xx" not in folder and "xhdpi" not in folder and "hdpi" not in folder else (72,72)).save(path)
+          PY
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze and test
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checklist-maik-${{ github.ref_name }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
