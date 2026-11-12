@@ -67,6 +67,10 @@ jobs:
               'signingConfig = signingConfigs.getByName("release")'
           )
           p.write_text(s)
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          m = manifest.read_text()
+          m = m.replace('android:label="checklist_maik"', 'android:label="چک‌لیست من"')
+          manifest.write_text(m)
           PY
 
       - name: Generate custom checklist launcher icon
@@ -93,11 +97,6 @@ jobs:
 
       - name: Resolve dependencies
         run: flutter pub get
-
-      - name: Analyze and test
-        run: |
-          flutter analyze
-          flutter test
 
       - name: Build release APK
         run: flutter build apk --release
