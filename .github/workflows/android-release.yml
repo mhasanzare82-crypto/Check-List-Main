@@ -87,25 +87,26 @@ jobs:
           p = Path("android/settings.gradle.kts")
           if not p.exists():
               p = Path("android/settings.gradle")
-          s = p.read_text()
-          lines = s.splitlines()
-          found = False
+          lines = p.read_text().splitlines()
           for i, line in enumerate(lines):
-              if "com.android.application" in line and "version" in line:
-                  lines[i], n = re.subn(r'version\\s+["\\'][^"\\']+["\\']', 'version "8.9.1"', line, count=1)
-                  if n == 0:
-                      raise SystemExit("Found Android plugin declaration but could not update its version: " + line)
-                  found = True
+              if "com.android.application" in line:
+                  updated, count = re.subn(r'version\s+"[^"]+"', 'version "8.9.1"', line, count=1)
+                  if count == 0:
+                      raise SystemExit("Could not identify Android plugin version on: " + line)
+                  lines[i] = updated
                   break
-          if not found:
-              raise SystemExit("Android application plugin declaration was not found in settings file")
-          p.write_text("\\n".join(lines) + "\\n")
+          else:
+              raise SystemExit("Android application plugin declaration was not found")
+          p.write_text("\n".join(lines) + "\n")
           p = Path("android/gradle/wrapper/gradle-wrapper.properties")
-          s = p.read_text()
-          s, n = re.subn(r'distributionUrl=.*', 'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip', s, count=1)
-          if n != 1:
-              raise SystemExit("Could not pin Gradle wrapper")
-          p.write_text(s)
+          lines = p.read_text().splitlines()
+          for i, line in enumerate(lines):
+              if line.startswith("distributionUrl="):
+                  lines[i] = "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip"
+                  break
+          else:
+              raise SystemExit("Gradle distributionUrl was not found")
+          p.write_text("\n".join(lines) + "\n")
           PY
 
       - name: Set app display name
