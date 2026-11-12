@@ -100,7 +100,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
           block = """
@@ -119,10 +118,10 @@ jobs:
               }
           """
           if 'create("release")' not in s:
-              pattern = r'\\n}\\s*\\n\\s*flutter\\s*\\{'
-              s, count = re.subn(pattern, "\\n" + block + "\\n}\\n\\nflutter {", s, count=1)
-              if count != 1:
+              marker = "\\n}\\n\\nflutter {"
+              if marker not in s:
                   raise SystemExit("Could not safely configure Android signing in build.gradle.kts")
+              s = s.replace(marker, "\\n" + block + "\\n}\\n\\nflutter {", 1)
               p.write_text(s)
           PY
 
