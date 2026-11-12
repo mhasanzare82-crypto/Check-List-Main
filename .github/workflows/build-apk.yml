@@ -129,7 +129,10 @@ jobs:
           manifest.write_text(m)
           PY
 
-      - name: Generate custom checklist launcher icon
+      - name: Install Python image dependencies
+  run: python3 -m pip install Pillow
+
+- name: Generate custom checklist launcher icon
         run: |
           python3 - <<'PY'
           from PIL import Image, ImageDraw
