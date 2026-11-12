@@ -2,7 +2,7 @@ name: checklist_maik
 description: اپلیکیشن مستقل مدیریت چک‌لیست‌ها
 publish_to: 'none'
 
-version: 1.0.3+4
+version: 1.0.5+6
 
 environment:
   sdk: ^3.11.0
