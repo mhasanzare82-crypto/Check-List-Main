@@ -116,7 +116,7 @@ jobs:
           )
           s = s.replace(
               '        release {',
-              '        release {\\n            signingConfig = signingConfigs.getByName("release")'
+              '        release {\n            signingConfig = signingConfigs.getByName("release")'
           )
           s = s.replace(
               'signingConfig = signingConfigs.getByName("debug")',
