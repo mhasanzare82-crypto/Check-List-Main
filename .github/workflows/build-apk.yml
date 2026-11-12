@@ -122,26 +122,29 @@ jobs:
               'signingConfig = signingConfigs.getByName("debug")',
               'signingConfig = signingConfigs.getByName("release")'
           )
-          import re
           # flutter_local_notifications requires Java core library desugaring.
           if "isCoreLibraryDesugaringEnabled" not in s:
-              s, count = re.subn(
-                  r'(\\bcompileOptions\\s*\\{)',
-                  r'\\1\\n        isCoreLibraryDesugaringEnabled = true',
-                  s,
-                  count=1
-              )
-              if count != 1:
-                  raise SystemExit("Could not find compileOptions block in build.gradle.kts")
+              if "compileOptions {" in s:
+                  s = s.replace(
+                      "compileOptions {",
+                      "compileOptions {\\n        isCoreLibraryDesugaringEnabled = true",
+                      1
+                  )
+              elif "android {" in s:
+                  s = s.replace(
+                      "android {",
+                      "android {\\n    compileOptions {\\n        isCoreLibraryDesugaringEnabled = true\\n    }",
+                      1
+                  )
+              else:
+                  raise SystemExit("Could not find android block in build.gradle.kts")
+
           if "desugar_jdk_libs" not in s:
-              s, count = re.subn(
-                  r'(\\bdependencies\\s*\\{)',
-                  r'\\1\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")',
-                  s,
-                  count=1
-              )
-              if count != 1:
-                  raise SystemExit("Could not find dependencies block in build.gradle.kts")
+              dependency = '    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")'
+              if "dependencies {" in s:
+                  s = s.replace("dependencies {", "dependencies {\\n" + dependency, 1)
+              else:
+                  s += "\\ndependencies {\\n" + dependency + "\\n}\\n"
           p.write_text(s)
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           m = manifest.read_text()
