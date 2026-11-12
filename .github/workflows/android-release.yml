@@ -84,29 +84,31 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p = Path("android/settings.gradle.kts")
-          if not p.exists():
-              p = Path("android/settings.gradle")
+          candidates = [Path("android/settings.gradle.kts"), Path("android/settings.gradle")]
+          p = next((x for x in candidates if x.exists()), None)
+          if p is None:
+              raise SystemExit("Android settings.gradle(.kts) was not generated")
           lines = p.read_text().splitlines()
           for i, line in enumerate(lines):
               if "com.android.application" in line:
-                  updated, count = re.subn(r'version\s+"[^"]+"', 'version "8.9.1"', line, count=1)
-                  if count == 0:
-                      raise SystemExit("Could not identify Android plugin version on: " + line)
+                  updated, count = re.subn(r"""version\s+(['"])[^'"]+\1""", 'version "8.9.1"', line, count=1)
+                  if count != 1:
+                      raise SystemExit("Could not update Android plugin version in: " + line)
                   lines[i] = updated
                   break
           else:
               raise SystemExit("Android application plugin declaration was not found")
           p.write_text("\n".join(lines) + "\n")
-          p = Path("android/gradle/wrapper/gradle-wrapper.properties")
-          lines = p.read_text().splitlines()
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          lines = wrapper.read_text().splitlines()
           for i, line in enumerate(lines):
               if line.startswith("distributionUrl="):
                   lines[i] = "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip"
                   break
           else:
               raise SystemExit("Gradle distributionUrl was not found")
-          p.write_text("\n".join(lines) + "\n")
+          wrapper.write_text("\n".join(lines) + "\n")
+          print("Pinned Android Gradle Plugin 8.9.1 and Gradle 8.11.1")
           PY
 
       - name: Set app display name
